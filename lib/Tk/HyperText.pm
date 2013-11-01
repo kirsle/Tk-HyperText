@@ -16,7 +16,7 @@ use HTML::TokeParser;
 use Data::Dumper;
 use URI::Escape;
 
-our $VERSION = "0.06";
+our $VERSION = 0.08;
 
 Construct Tk::Widget 'HyperText';
 
@@ -289,7 +289,7 @@ sub render {
 			while ($text =~ /&#x([^;]+?)\;/i) {
 				my $hex = $1;
 				my $qm  = quotemeta("&#x$hex");
-				my $chr = eval "0x$hex;";
+				my $chr = hex $hex;
 				my $char = chr($chr);
 				$text =~ s/$qm/$char/ig;
 			}
@@ -297,7 +297,7 @@ sub render {
 				my $decimal = $1;
 				my $hex = sprintf("%x", $decimal);
 				my $qm  = quotemeta("&#$decimal;");
-				my $chr = eval "0x$hex";
+				my $chr = hex $hex;
 				my $char = chr($chr);
 				$text =~ s/$qm/$char/ig;
 			}
@@ -427,22 +427,22 @@ sub render {
 
 				my ($bg,$fg,$link,$alink,$vlink);
 				if (exists $at->{bgcolor}) {
-					$bg = $at->{bgcolor};
+					$bg = $at->{bgcolor} || "#FFFFFF";
 				}
 				if (exists $at->{text}) {
-					$fg = $at->{text};
+					$fg = $at->{text} || "#000000";
 				}
 				if (exists $at->{link}) {
 					$link = $at->{link};
-					$mAttr->{'-anchor'}->{'-normal'} = $link;
+					$mAttr->{'-anchor'}->{'-normal'} = $link || "#0000FF";
 				}
 				if (exists $at->{vlink}) {
 					$vlink = $at->{vlink};
-					$mAttr->{'-anchor'}->{'-visited'} = $vlink;
+					$mAttr->{'-anchor'}->{'-visited'} = $vlink || "#990099";
 				}
 				if (exists $at->{alink}) {
 					$alink = $at->{alink};
-					$mAttr->{'-anchor'}->{'-active'} = $alink;
+					$mAttr->{'-anchor'}->{'-active'} = $alink || "#FF0000";
 				}
 
 				if ($foundOneBody == 0) {
@@ -2040,6 +2040,11 @@ The following tags and attributes are supported by this module:
 L<Tk::ROText> and L<Tk::Text>.
 
 =head1 CHANGES
+
+  0.08 Nov  1, 2013
+  - Use hex() instead of eval() to convert hex strings into numbers.
+  - Set default values for body colors.
+  - Stop demo.pl from being installed; rename it to eg/example.
 
   0.06 July 14, 2008
   - The module uses HTML::TokeParser now and does "real" HTML parsing.
