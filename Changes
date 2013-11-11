@@ -1,5 +1,8 @@
 Revision history for Perl module Tk::HyperText
 
+0.09 2013-11-11
+  - Reformatted as per CPAN::Changes::Spec -neilbowers
+
 0.08 2013-11-01
   - Use hex() instead of eval() to convert hex strings into numbers.
   - Set default values for body colors.

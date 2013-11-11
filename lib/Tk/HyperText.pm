@@ -16,7 +16,7 @@ use HTML::TokeParser;
 use Data::Dumper;
 use URI::Escape;
 
-our $VERSION = 0.08;
+our $VERSION = 0.09;
 
 Construct Tk::Widget 'HyperText';
 
@@ -2040,6 +2040,9 @@ The following tags and attributes are supported by this module:
 L<Tk::ROText> and L<Tk::Text>.
 
 =head1 CHANGES
+
+  0.09 Nov 11, 2013
+  - Reformatted as per CPAN::Changes::Spec -neilbowers
 
   0.08 Nov  1, 2013
   - Use hex() instead of eval() to convert hex strings into numbers.
