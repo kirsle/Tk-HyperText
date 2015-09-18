@@ -1,5 +1,8 @@
 Revision history for Perl module Tk::HyperText
 
+0.10 Sep 18, 2015
+  - Add dependency on Tk::Derived.
+
 0.09 2013-11-11
   - Reformatted as per CPAN::Changes::Spec -neilbowers
 
@@ -50,4 +53,3 @@ Revision history for Perl module Tk::HyperText
 
 0.01 2007-06-20
   - Initial release.
-

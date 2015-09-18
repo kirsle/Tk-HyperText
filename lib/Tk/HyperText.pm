@@ -16,7 +16,7 @@ use HTML::TokeParser;
 use Data::Dumper;
 use URI::Escape;
 
-our $VERSION = 0.09;
+our $VERSION = '0.10';
 
 Construct Tk::Widget 'HyperText';
 
@@ -716,8 +716,8 @@ sub render {
 									}
 								}
 							}
-				
-							# Submit the form.				
+
+							# Submit the form.
 							$cw->_event ('Submit',
 								form    => $formdata->{$formname}->{form}->{name},
 								action  => $formdata->{$formname}->{form}->{action},
@@ -2041,6 +2041,9 @@ L<Tk::ROText> and L<Tk::Text>.
 
 =head1 CHANGES
 
+  0.10 Sep 18, 2015
+  - Add dependency on Tk::Derived.
+
   0.09 Nov 11, 2013
   - Reformatted as per CPAN::Changes::Spec -neilbowers
 
@@ -2097,4 +2100,3 @@ it under the same terms as Perl itself, either Perl version 5.10.0 or,
 at your option, any later version of Perl 5 you may have available.
 
 =cut
-

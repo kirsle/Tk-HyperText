@@ -34,8 +34,8 @@ code.
 
 ## PURPOSE
 
-First of all, __Tk::HyperText is NOT expected to become a full-fledged web
-browser widget__. This module's original idea was just to be a simple
+First of all, **Tk::HyperText is NOT expected to become a full-fledged web
+browser widget**. This module's original idea was just to be a simple
 HTML-rendering widget, specifically to match the capabilities of the
 _AOL Instant Messenger_'s HTML widgets. That is, to render basic text
 formatting, images, and hyperlinks. Anything this module does that's extra
@@ -43,7 +43,7 @@ is only there because I was up to the challenge.
 
 ## VERSION 0.06+
 
-This module is __NOT__ backwards compatible with versions 0.05 and below.
+This module is **NOT** backwards compatible with versions 0.05 and below.
 Specifically, the module was rewritten to use `HTML::TokeParser` as its
 HTML parsing engine instead of parsing it as plain text. Also, the methods
 have all been changed. The old module's overloading of the standard
@@ -53,7 +53,7 @@ need to follow the same format.
 
 Also, support for Cascading StyleSheets doesn't work at this time. It may be
 re-implemented at a later date, but, as this widget is not meant to become
-a full-fledged web browser (see ["PURPOSE"](#PURPOSE)), the CSS support might not
+a full-fledged web browser (see ["PURPOSE"](#purpose)), the CSS support might not
 return.
 
 ## EXAMPLE
@@ -64,7 +64,7 @@ Run the \`demo.pl\` script included in the distribution.
 
 - \-continuous, -continue
 
-    Setting this option to 1 tells the widget __not__ to re-render the entire
+    Setting this option to 1 tells the widget **not** to re-render the entire
     contents of the widget each time the contents are updated. The default value
     is 0, so the entire page contents are rendered on any updates. This causes
     the code to be "continuous", so that i.e. if you fail to close a bold tag and
@@ -76,7 +76,7 @@ Run the \`demo.pl\` script included in the distribution.
 
 - \-allow, -deny
 
-    Define tags that are allowed or denied. See ["WIDGET METHODS"](#WIDGET METHODS) for more
+    Define tags that are allowed or denied. See ["WIDGET METHODS"](#widget-methods) for more
     details.
 
 - \-attributes
@@ -120,7 +120,7 @@ Run the \`demo.pl\` script included in the distribution.
 - _$text_\->__setHandler__ _(name => event)_
 
     Define a handler for certain events that happen within the widget. See
-    ["EVENTS"](#EVENTS) for more information.
+    ["EVENTS"](#events) for more information.
 
         $html->setHandler (Title => sub {
           my ($self,$newTitle) = @_;
@@ -131,15 +131,15 @@ Run the \`demo.pl\` script included in the distribution.
 - _$text_\->__allowedTags__ _(tags)_
 
     Specify a set of tags that are allowed to be rendered. Pass in the tag names
-    as an array. If the "allow list" has any entries, __only__ these tags will be
+    as an array. If the "allow list" has any entries, **only** these tags will be
     rendered.
 
 - _$text_\->__deniedTags__ _(tags)_
 
-    Specify a set of tags that are __not__ allowed to be rendered. If the "allow
+    Specify a set of tags that are **not** allowed to be rendered. If the "allow
     list" is empty and the "denied list" has any entries, then all tags are
-    allowed __except__ for those in the denied list. If any entries in the denied
-    list conflict with entries in the allowed list, those tags are __not__
+    allowed **except** for those in the denied list. If any entries in the denied
+    list conflict with entries in the allowed list, those tags are **not**
     allowed.
 
 - _$text_\->__allowHypertext__ _()_
@@ -220,7 +220,7 @@ The following are the event handlers currently supported by
           alt    => 'alt text',   # <img alt>
         );
 
-    __Note about Images:__ The `Resource` event, when called for an image, wants
+    **Note about Images:** The `Resource` event, when called for an image, wants
     you to return the image's data, Base64-encoded. Otherwise, the image on the
     page will show up as a "broken image" icon. Here is an example of how to
     handle image resources:
@@ -231,29 +231,29 @@ The following are the event handlers currently supported by
         $html->setHandler (Resource => sub {
           my ($self,%info) = @_;
 
-        if ($info{tag} eq 'img') {
+          if ($info{tag} eq 'img') {
 
-          # If an http:// link, get the image from the web.
-          if ($info{src} =~ /^http/i) {
-            my $bin = get $info{src};
-            my $enc = encode_base64($bin);
-            return $enc;
-          }
+            # If an http:// link, get the image from the web.
+            if ($info{src} =~ /^http/i) {
+              my $bin = get $info{src};
+              my $enc = encode_base64($bin);
+              return $enc;
+            }
 
-          # Otherwise, read it from a local file.
-          else {
-            if (-f $src) {
-              open (READ, $src);
-              binmode READ;
-              my @bin = <READ>;
-              close (READ);
-              chomp @bin;
+            # Otherwise, read it from a local file.
+            else {
+              if (-f $src) {
+                open (READ, $src);
+                binmode READ;
+                my @bin = <READ>;
+                close (READ);
+                chomp @bin;
 
-              my $enc = encode_base64(join("\n",@bin));
-              return enc;
+                my $enc = encode_base64(join("\n",@bin));
+                return enc;
+              }
             }
           }
-        }
 
           return undef;
         });
@@ -350,6 +350,9 @@ The following tags and attributes are supported by this module:
 [Tk::ROText](https://metacpan.org/pod/Tk::ROText) and [Tk::Text](https://metacpan.org/pod/Tk::Text).
 
 # CHANGES
+
+    0.10 Sep 18, 2015
+    - Add dependency on Tk::Derived.
 
     0.09 Nov 11, 2013
     - Reformatted as per CPAN::Changes::Spec -neilbowers
