@@ -351,6 +351,9 @@ The following tags and attributes are supported by this module:
 
 # CHANGES
 
+    0.11 Feb 23, 2016
+    - Add dependency on HTML::TokeParser.
+
     0.10 Sep 18, 2015
     - Add dependency on Tk::Derived.
 

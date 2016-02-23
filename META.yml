@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Tk-HyperText
-version:             0.10
+version:             0.11
 abstract:            An ROText widget which renders HTML code.
 license:             ~
 author:
@@ -8,6 +8,7 @@ author:
 generated_by:        ExtUtils::MakeMaker version 6.42
 distribution_type:   module
 requires:
+    HTML::TokeParser: 0
     Tk::Derived: 0
 meta-spec:
     url:     http://module-build.sourceforge.net/META-spec-v1.3.html

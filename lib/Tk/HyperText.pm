@@ -16,7 +16,7 @@ use HTML::TokeParser;
 use Data::Dumper;
 use URI::Escape;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 Construct Tk::Widget 'HyperText';
 
@@ -2040,6 +2040,9 @@ The following tags and attributes are supported by this module:
 L<Tk::ROText> and L<Tk::Text>.
 
 =head1 CHANGES
+
+  0.11 Feb 23, 2016
+  - Add dependency on HTML::TokeParser.
 
   0.10 Sep 18, 2015
   - Add dependency on Tk::Derived.

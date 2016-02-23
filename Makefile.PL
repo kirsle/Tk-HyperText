@@ -12,7 +12,8 @@ WriteMakefile(
     NAME              => 'Tk::HyperText',
     VERSION_FROM      => 'lib/Tk/HyperText.pm', # finds $VERSION
     PREREQ_PM         => {
-        'Tk::Derived' => 0,
+        'HTML::TokeParser' => 0,
+        'Tk::Derived'      => 0,
     }, # e.g., Module::Name => 1.1
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/Tk/HyperText.pm', # retrieve abstract from module
