@@ -351,6 +351,9 @@ The following tags and attributes are supported by this module:
 
 # CHANGES
 
+    0.12 Feb 25, 2016
+    - Add more dependencies to get CPANTS to pass.
+
     0.11 Feb 23, 2016
     - Add dependency on HTML::TokeParser.
 
