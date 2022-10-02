@@ -14,6 +14,7 @@ use Tk::Listbox;
 use Tk::Text;
 use HTML::TokeParser;
 use URI::Escape;
+use HTML::Entities::Numbered ();
 
 our $VERSION = '0.12';
 
@@ -230,20 +231,13 @@ sub render {
 		intable    => 0,
 		intd       => 0,
 	);
-	my @escape = (
-		'&lt;'   => '<',
-		'&gt;'   => '>',
-		'&quot;' => '"',
-		'&apos;' => "'",
-		'&nbsp;' => ' ',
-		'&reg;'  => chr(0x00ae),
-		'&copy;' => chr(0x00a9),
-		'&hearts;' => chr(0x2665),
-		'&diams;'  => chr(0x2666),
-		'&spades;' => chr(0x2660),
-		'&clubs;'  => chr(0x2663),
-		'&amp;'  => '&',
-	);
+    my @escape = (
+            '&lt;'   => '<',
+            '&gt;'   => '>',
+            '&quot;' => '"',
+            '&apos;' => "'",
+            '&amp;'  => '&',
+    );
 	my @stackList = ();
 	my $ulLevel = 0;
 	my $olLevel = 0;
@@ -285,13 +279,19 @@ sub render {
 			$text =~ s/([A-Za-z0-9]+)(\n+)([A-Za-z0-9]+)/$1 $3/ig;
 
 			# Process escape sequences.
+            # fix the entities
+            # actually fix all but the 5 xml entities, really only need to avoid AMP
+            #   but there's no easy way to do that
+			$text = HTML::Entities::Numbered::name2hex_xml($text);
+            # fix hex sequences
 			while ($text =~ /&#x([^;]+?)\;/i) {
 				my $hex = $1;
-				my $qm  = quotemeta("&#x$hex");
+				my $qm  = quotemeta("&#x$hex;");
 				my $chr = hex $hex;
 				my $char = chr($chr);
 				$text =~ s/$qm/$char/ig;
 			}
+            # fix decimal sequences
 			while ($text =~ /&#([^;]+?)\;/i) {
 				my $decimal = $1;
 				my $hex = sprintf("%x", $decimal);
@@ -300,10 +300,11 @@ sub render {
 				my $char = chr($chr);
 				$text =~ s/$qm/$char/ig;
 			}
-			for (my $i = 0; $i < scalar(@escape) - 1; $i += 2) {
-				my $qm = quotemeta($escape[$i]);
-				my $rep = $escape[$i + 1];
-				$text =~ s/$qm/$rep/ig;
+            # fix the exception entities
+            for (my $i = 0; $i < scalar(@escape) - 1; $i += 2) {
+                    my $qm = quotemeta($escape[$i]);
+                    my $rep = $escape[$i + 1];
+                    $text =~ s/$qm/$rep/ig;
 			}
 
 			# Unless in <pre>, remove newlines.
