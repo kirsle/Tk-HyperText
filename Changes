@@ -7,6 +7,7 @@ Revision history for Perl module Tk::HyperText
   - Added more examples to the "escape sequence" demo page
   - Fixed font so proper sizes and family were honored, which also fixed
     the H? tags font size.
+  - Fixed font sizes that were off by 1
 
 0.12 Feb 25, 2016
   - Add more dependencies to get CPANTS to pass.
