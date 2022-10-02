@@ -1141,7 +1141,7 @@ sub render
 				$style{linktag} = '';
 			}
 			elsif ($tag eq 'p') { # /Paragraph
-				$browser->insert('end',"\n\n",$format);
+				#$browser->insert('end',"\n\n",$format);
 				$lineWritten = 0;
 			}
 			elsif ($tag eq 'table') { # /Table
