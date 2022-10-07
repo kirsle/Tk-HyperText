@@ -285,11 +285,14 @@ sub render
 	my $foundOneBody = 0;
 	my $end = 0;
 	my $lineWritten = 0; # 1 = a line of text was written
+	my $endedBlock = 0;  # 1 = just ended a single line block element such as: H#, P, HR
+			     #     (to implement implied paragraphs when plain text comes after this)
 	while (my $token = $parser->get_token) {
 		my @data = @{$token};
 
 		if ($data[0] eq "T") { # Plain Text
 			my $text = $data[1];
+			next if ($text eq "\n");   # newline only
 			$text =~ s/([A-Za-z0-9]+)(\n+)([A-Za-z0-9]+)/$1 $3/ig;
 
 			# Process escape sequences.
@@ -413,8 +416,10 @@ sub render
 
 			# Insert the plain text.
 			if (length $text > 0) {
+				$browser->insert ('end',"\n") if ($endedBlock);
 				$browser->insert ('end', $text, $tag);
 				$lineWritten = 1;
+				$endedBlock = 0;
 			}
 
 			if ($style{linking}) {
@@ -429,6 +434,14 @@ sub render
 
 			my $tag = lc($data[1]);
 			my $format = $cw->_makeTag(\%style);
+
+			# if we just finished a single line block and we have one of these
+			# tags listed, then we really shouldn't turn off the flag because
+			# it's legal to start an implied paragraph with these tags.
+			if ($endedBlock && ($tag !~ m/^(font|big|small|b|i|u|s|sub|sup|strong|em)$/)) {
+				$endedBlock = 0;
+			}
+
 			if ($tag =~ /^(html|head)$/) { # HTML, HEAD
 				# That was nice of them.
 			}
@@ -503,7 +516,8 @@ sub render
 				$lineWritten = 0;
 			}
 			elsif ($tag eq 'p') { # Paragraph
-				$browser->insert ('end', "\n\n", $format);
+				$browser->insert ('end', "\n", $format) if ($lineWritten);
+				$browser->insert ('end', "\n", $format);
 				$lineWritten = 0;
 			}
 			elsif ($tag eq 'form') { # Form
@@ -839,6 +853,7 @@ sub render
 				push (@stack, $cw->_addStack(\%style));
 			}
 			elsif ($tag eq 'hr') { # HR
+				$browser->insert ('end',"\n") if $lineWritten;
 				my $at = $data[2];
 				my $height = 4;
 				if (exists $at->{size}) {
@@ -860,6 +875,7 @@ sub render
 				);
 				$browser->insert ('end', "\n", $format);
 				$lineWritten = 0;
+				$endedBlock = 1;
 			}
 			elsif ($tag eq 'img') { # IMG
 				my $at = $data[2];
@@ -951,7 +967,8 @@ sub render
 			elsif ($tag =~ /^h(1|2|3|4|5|6)$/) { # Heading
 				my $level = $1;
 				my $size = $cw->_heading($level);
-				$browser->insert ('end',"\n\n") if $lineWritten;
+				$browser->insert ('end',"\n") if $lineWritten;
+				$browser->insert ('end',"\n");
 				$style{size} = $size;
 				$style{weight} = 'bold';
 				push (@stack, $cw->_addStack(\%style));
@@ -1119,6 +1136,7 @@ sub render
 			}
 		}
 		elsif ($data[0] eq "E") { # End Tag
+			$endedBlock = 0;
 			# Skip blocked tags.
 			next if $cw->_blockedTag ($data[1]);
 
@@ -1141,8 +1159,9 @@ sub render
 				$style{linktag} = '';
 			}
 			elsif ($tag eq 'p') { # /Paragraph
-				#$browser->insert('end',"\n\n",$format);
+				$browser->insert('end',"\n",$format);
 				$lineWritten = 0;
+				$endedBlock = 1;
 			}
 			elsif ($tag eq 'table') { # /Table
 				$browser->insert('end',"\n",$format);
@@ -1239,9 +1258,9 @@ sub render
 			}
 			elsif ($tag =~ /^h(1|2|3|4|5|6)$/) { # /Heading
 				$browser->insert('end',"\n\n",$format);
-				%style = $cw->_rollbackStack(\@stack,
-					qw(size weight));
+				%style = $cw->_rollbackStack(\@stack, qw(size weight));
 				$lineWritten = 0;
+				#$endedBlock = 1;
 			}
 			elsif ($tag eq 'ol') { # /Ordered List
 				pop (@stackList);
@@ -1420,7 +1439,13 @@ sub _makeTag
 	# cache the fonts because if we don't performance is really bad
 	# with the cache life is good
 	my $fontSize = $cw->_size($style->{size});
-	my $fontKey = join("_", $style->{family}, $style->{weight}, $style->{slant}, $fontSize, $style->{underline}, $style->{overstrike});
+	my $fontKey = join("_", $style->{family},
+				$style->{weight},
+				$style->{slant},
+				$fontSize,
+				$style->{underline},
+				$style->{overstrike},
+				);
 	if (!$fontCache{$fontKey}) {
 	    $fontCache{$fontKey} = $cw->fontCreate(
 		-family => $style->{family},
@@ -1432,29 +1457,21 @@ sub _makeTag
 	    );
 	}
 
-	if (defined $widget) {
-		$widget->tagConfigure ($tag,
-			-foreground => $style->{foreground},
-			-background => $style->{background},
-			-font       => $fontCache{$fontKey},
-			-offset => $style->{offset},
-			-justify => $style->{justify},
-			-lmargin1 => $style->{lmargin1},
-			-lmargin2 => $style->{lmargin2},
-			-rmargin  => $style->{rmargin},
+	my @args = ($tag,
+		-foreground => $style->{foreground},
+		-background => $style->{background},
+		-font       => $fontCache{$fontKey},
+		-offset => $style->{offset},
+		-justify => $style->{justify},
+		-lmargin1 => $style->{lmargin1},
+		-lmargin2 => $style->{lmargin2},
+		-rmargin  => $style->{rmargin},
 		);
+	if (defined $widget) {
+		$widget->tagConfigure (@args);
 	}
 	else {
-		$cw->SUPER::tagConfigure ($tag,
-			-foreground => $style->{foreground},
-			-background => $style->{background},
-			-font       => $fontCache{$fontKey},
-			-offset => $style->{offset},
-			-justify => $style->{justify},
-			-lmargin1 => $style->{lmargin1},
-			-lmargin2 => $style->{lmargin2},
-			-rmargin  => $style->{rmargin},
-		);
+		$cw->SUPER::tagConfigure (@args);
 	}
 
 	return $tag;
