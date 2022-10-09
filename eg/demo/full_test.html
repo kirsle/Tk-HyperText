@@ -1,0 +1,89 @@
+<html>
+<head>
+<title>Full Test</title>
+</head>
+<body bgcolor="#EEEEFF" link="#0000FF" vlink="#FF00FF" alink="#FF0000" text="#000000">
+
+<h1>Fuller Demonstration of Capabilities</h1>
+
+This page tries to test as many capabilities of the Tk::HyperText's as
+possible, specifically testing edge cases. In some ways, HTML is a very
+simple language, however there are a number of interesting combinations
+and edge cases, so try them here to test that Tk::HyperText does the
+right thing (as much as possible).
+
+<hr>
+
+<h1>Heading Level 1</h1>
+
+Plain text after H1, so an implied paragraph. No BR or /P.
+Lorem ipsum dolor sit amet, consectetuer adipiscing elit. In vitae lorem sed
+tellus egestas vestibulum. Ut vulputate porttitor ligula. Maecenas facilisis
+suscipit quam. Nam diam.
+
+<h2>Heading Level 2</h2>
+
+Plain text after H2, so an implied paragraph. No BR or /P.
+Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Vestibulum et diam
+ vitae nibh semper porttitor. Donec blandit nunc quis diam. Donec sed risus
+ malesuada neque. No BR or /P.
+
+<h3>Heading Level 3</h3>
+
+<p>A marked paragraph after H3.</p>
+<p>A marked paragraph.</p>
+
+<center><h1>A centered heading</h1></center>
+<p>And back to normal in a paragraph.</p>
+<p>paragraph 2</p>
+<p>paragraph 3<br>
+line 3b after a BR</p>
+<p>paragraph 4</p>
+plain next not in a para...but since it's between P, it should show like an implied para (#5).
+<p>new para 6</p>
+
+<hr size="10">
+
+<h2>Font Tags</h2>
+
+<p>Basic, unformatted font in a para.</p>
+
+<font face="Arial MS">(plain next not in a para starting with a tag) Arial font, with a little
+<font face="Courier">Courier</font> thrown in the middle.</font></p>
+
+<p>Some <font color="red">"red" font, with some <font color="#0000FF">"#0000FF"
+font</font> in the middle.</font></p>
+
+<p><font size="1">Smallest font (size 1).</font> <font size="2">Smaller font (size 2).</font>
+<font size="3">Normal font (size 3).</font> <font size="4">A little larger font (size 4).</font>
+<font size="5">A larger font (size 5).</font> <font size="6">A big font (size 6).</font>
+<font size="7">Very big font (size 7).</font></p>
+
+<p><font back="#FFFF00">This text was important enough to highlight with the BACK attribute
+to show yellow.</font></p>
+
+<p><font face="Helvetica" size="6" color="#0000FF" back="#FFFFFF">This particular
+string of text has all the possible font attributes defined: face, size, color, back.</font></p>
+
+<p>This has <b>bold</b>, <i>italic</i>, <u>underline</u>, <s>s for strike</s>,
+<sup>sup</sup>to-this, <sub>sub</sub>to-this, <strong>strong</strong>, <em>em</em>,
+<ins>ins</ins>, <del>del</del>, <big>big</big>, <small>small</small>, <code>code</code>.
+</p>
+
+<p><center>paragraph with CENTER within</center></p>
+<center><p>paragraph within a CENTER</p></center>
+
+<hr>
+
+...add more tests for other tags...
+
+<hr>
+
+Known problems to be corrected in the future:
+<ul>
+    <li>"text\n&lt;font&gt;text2&lt;/font&gt;" - the newline should be interpreted as a space but it's not</li>
+    <li>most browsers can cope with missing &lt;/li&gt; tags, we don't</li>
+</ul>
+
+</body>
+</html>

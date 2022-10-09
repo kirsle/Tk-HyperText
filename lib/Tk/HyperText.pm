@@ -287,13 +287,19 @@ sub render
 	my $lineWritten = 0; # 1 = a line of text was written
 	my $endedBlock = 0;  # 1 = just ended a single line block element such as: H#, P, HR
 			     #     (to implement implied paragraphs when plain text comes after this)
+	my $prevTag = '';
+	my $tag;
 	while (my $token = $parser->get_token) {
 		my @data = @{$token};
+		#print "prevTag=$prevTag token: ", Dumper($token); use Data::Dumper;
 
 		if ($data[0] eq "T") { # Plain Text
 			my $text = $data[1];
-			next if ($text eq "\n");   # newline only
-			$text =~ s/([A-Za-z0-9]+)(\n+)([A-Za-z0-9]+)/$1 $3/ig;
+			$tag = '';
+
+			# should we be doing this here?
+			# how does it affect PRE and BLOCKQUOTE?
+			$text =~ s/(\S)([\s\n]+)(\S)/$1 $3/gm;
 
 			# Process escape sequences.
 			# fix the entities
@@ -326,12 +332,15 @@ sub render
 
 			# Unless in <pre>, remove newlines.
 			unless ($style{pre}) {
-				$text =~ s/[\x0d\x0a]//g;
+				# attempt to fix "text\n<font>" but it create problems for new paras
+				#$text =~ s/\n$/ /;
+
+				$text =~ s/[\n\r]//g;
 
 				# If there's no text, skip this.
-				if ($text =~ /^[\s\t]+$/) {
-					next;
-				}
+				# Note: if the text is a single space (that's maybe between tags) then we must show it!
+				#next if ($text =~ /^[\s\t]+$/);
+
 				$text =~ s/^[\s\t]+/ /g;
 				$text =~ s/[\s\t]+$/ /g;
 			}
@@ -416,10 +425,11 @@ sub render
 
 			# Insert the plain text.
 			if (length $text > 0) {
-				$browser->insert ('end',"\n") if ($endedBlock);
+				$browser->insert ('end',"\n") if ($prevTag =~ m/hr|p/);
 				$browser->insert ('end', $text, $tag);
 				$lineWritten = 1;
 				$endedBlock = 0;
+				$prevTag = '';
 			}
 
 			if ($style{linking}) {
@@ -432,7 +442,7 @@ sub render
 			# Skip blocked tags.
 			next if $cw->_blockedTag ($data[1]);
 
-			my $tag = lc($data[1]);
+			$tag = lc($data[1]);
 			my $format = $cw->_makeTag(\%style);
 
 			# if we just finished a single line block and we have one of these
@@ -514,10 +524,11 @@ sub render
 			elsif ($tag eq "br") { # Line break
 				$browser->SUPER::insert ('end', "\n", $format);
 				$lineWritten = 0;
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'p') { # Paragraph
 				$browser->insert ('end', "\n", $format) if ($lineWritten);
-				$browser->insert ('end', "\n", $format);
+				$browser->insert ('end', "\n", $format) if ($prevTag !~ m/(h\d)|p/);
 				$lineWritten = 0;
 			}
 			elsif ($tag eq 'form') { # Form
@@ -876,6 +887,7 @@ sub render
 				$browser->insert ('end', "\n", $format);
 				$lineWritten = 0;
 				$endedBlock = 1;
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'img') { # IMG
 				my $at = $data[2];
@@ -1140,7 +1152,7 @@ sub render
 			# Skip blocked tags.
 			next if $cw->_blockedTag ($data[1]);
 
-			my $tag = lc($data[1]);
+			$tag = lc($data[1]);
 			my $format = $cw->_makeTag(\%style);
 			if ($tag =~ /^(html|head)$/) { # /HTML, /HEAD
 				# That was nice of them.
@@ -1162,11 +1174,12 @@ sub render
 				$browser->insert('end',"\n",$format);
 				$lineWritten = 0;
 				$endedBlock = 1;
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'table') { # /Table
 				$browser->insert('end',"\n",$format);
-				%style = $cw->_rollbackStack(\@stack,
-					qw(intable));
+				%style = $cw->_rollbackStack(\@stack, qw(intable));
+				$prevTag = $tag;
 			}
 			elsif ($tag eq "tr") { # /Table Row
 				# Do nothing.
@@ -1251,6 +1264,7 @@ sub render
 						);
 					}
 				}
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'font') { # /Font
 				%style = $cw->_rollbackStack(\@stack,
@@ -1260,7 +1274,7 @@ sub render
 				$browser->insert('end',"\n\n",$format);
 				%style = $cw->_rollbackStack(\@stack, qw(size weight));
 				$lineWritten = 0;
-				#$endedBlock = 1;
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'ol') { # /Ordered List
 				pop (@stackList);
@@ -1284,6 +1298,7 @@ sub render
 					$browser->insert ('end',"\n\n",$format);
 					$lineWritten = 0;
 				}
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'ul') { # /Unordered List
 				pop (@stackList);
@@ -1307,6 +1322,7 @@ sub render
 					$browser->insert ('end',"\n\n",$format);
 					$lineWritten = 0;
 				}
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'li') { # /LI
 				$browser->insert('end',"\n",$format);
@@ -1317,6 +1333,7 @@ sub render
 				%style = $cw->_rollbackStack(\@stack,
 					qw(lmargin1 lmargin2 rmargin));
 				$lineWritten = 0;
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'div') { # /Div
 				$browser->insert('end',"\n",$format);
@@ -1330,6 +1347,7 @@ sub render
 				$browser->insert ('end',"\n",$format);
 				%style = $cw->_rollbackStack(\@stack,
 					qw(family pre));
+				$prevTag = $tag;
 			}
 			elsif ($tag =~ /^(code|tt|kbd|samp)$/) { # /Code
 				%style = $cw->_rollbackStack(\@stack,'family');
