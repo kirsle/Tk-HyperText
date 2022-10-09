@@ -1496,12 +1496,18 @@ sub _makeTag
 }
 
 # Calculates the point size from an HTML size.
+# Note: we can't handle sizes like "+1" or "-1"
 sub _size
 {
 	my ($cw,$size) = @_;
 
+	# In points
+	if ($size =~ m/^(\d+)pt/) {
+		return $1;
+	}
+
 	# Translate words to numbers?
-	if ($size =~ /[^0-9]/) {
+	if ($size =~ /^[a-z]+/) {
 		$size = $cw->_sizeStringToNumber ($size);
 	}
 
@@ -1542,13 +1548,13 @@ sub _sizeStringToNumber
 	my ($cw,$string) = @_;
 
 	my %map = (
-		'xx-large' => 6,
-		'x-large'  => 5,
-		'large'    => 4,
-		'medium'   => 3,
-		'small'    => 2,
-		'x-small'  => 1,
-		'xx-small' => 0,
+		'xx-large' => 7,
+		'x-large'  => 6,
+		'large'    => 5,
+		'medium'   => 4,
+		'small'    => 3,
+		'x-small'  => 2,
+		'xx-small' => 1,
 	);
 
 	return exists $map{$string} ? $map{$string} : 3;
@@ -1839,7 +1845,7 @@ default styles for use within the rendered pages.
         -family => 'Times',
         -mono   => 'Courier',
         -size   => 'medium',    # or any HTML size
-                                # (1..6, xx-small..xx-large)
+                                # (1..7, xx-small..xx-large, #pt)
 
         # Text styles, set them to 1 to apply the effect.
         # I don't see why anyone would want to use these,
@@ -2096,6 +2102,16 @@ The following tags and attributes are supported by this module:
     <ins>
   <s>
     <del>
+
+Note: The C<font> tag C<size> attribute understands "1" through "7". It
+can also map "xx-small" to "xx-large" as 1 to 7. It does NOT understand
+relative sizes like "+1" to make it 1 size bigger than the current size
+(with a max of 7) nor "-1" to make it 1 size smaller than the current size
+(with a min of 1). Since there is no style sheet support yet but the
+Tk::Text widget can understand point sizes, Tk::HyperText has an extension
+so you can also specify a number and "pt" (e.g. "14pt") to have the font
+use that point size. Further note that Tk::Text does not guarantee that
+size but will use whatever it thinks is the closest thing.
 
 =head1 SEE ALSO
 
