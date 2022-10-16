@@ -9,6 +9,7 @@ Revision history for Perl module Tk::HyperText
     the H? tags font size.
   - Fixed font sizes that were off by 1
   - Fixed more spacing issues.
+  - Added extension so you can specify a font in a point size.
   - Add support for margin-top and margin-bottom to the SPAN tag.
 
 0.12 Feb 25, 2016
