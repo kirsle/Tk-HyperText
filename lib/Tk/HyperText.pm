@@ -215,6 +215,20 @@ sub clearHistory
 	$cw->{hypertext}->{history} = {};
 }
 
+# normalize the units, changing them from what HTML uses to what Tk::Text uses;
+# note: we only handle absolute units, not relative
+sub normalizeUnits
+{
+	my ($num, $units) = @_;
+	return $num if (!defined($units) || $units eq "px"); # pixels
+	return "${num}c" if ($units eq "cm"); # centimeters
+	return "${num}m" if ($units eq "mm"); # millimeters
+	return "${num}i" if ($units eq "in"); # inches
+	return "${num}p" if ($units eq "pt"); # points
+	return ($num * 12) . "p" if ($units eq "pc"); # picas (1pc == 12 pt)
+	return "$num$units"; # if all fail, return what they entered
+}
+
 sub render
 {
 	my ($cw,$html) = @_;
@@ -289,6 +303,18 @@ sub render
 			     #     (to implement implied paragraphs when plain text comes after this)
 	my $prevTag = '';
 	my $tag;
+
+	# token is an array-ref:
+	# [0] = type: "S" for start tag, "E" for end tag, "T" for text, "C" for comment,
+	#             "D" for declaration, and "PI" for process instructions.
+	#             The rest of the token array depend on the type like this: 
+	#   ["S",  $tag, $attr (hash-ref of attributes), $attrseq (array-ref), $text]
+	#   ["E",  $tag, $text]
+	#   ["T",  $text, $is_data]
+	#   ["C",  $text]
+	#   ["D",  $text]
+	#   ["PI", $token0, $text]
+
 	while (my $token = $parser->get_token) {
 		my @data = @{$token};
 		#print "prevTag=$prevTag token: ", Dumper($token); use Data::Dumper;
@@ -1092,6 +1118,14 @@ sub render
 				push (@stack, $cw->_addStack(\%style));
 			}
 			elsif ($tag eq 'span') { # Span
+				if ($data[2]->{style}) {
+					if ($data[2]->{style} =~ m/margin-top:\s*(\d+)(\w*)/) {
+						$style{spacing1} = normalizeUnits($1, $2);
+					}
+					if ($data[2]->{style} =~ m/margin-bottom:\s*(\d+)(\w*)/) {
+						$style{spacing3} = normalizeUnits($1, $2);
+					}
+				}
 				push (@stack, $cw->_addStack(\%style));
 			}
 			elsif ($tag eq 'pre') { # Pre
@@ -1345,8 +1379,7 @@ sub render
 			}
 			elsif ($tag eq 'pre') { # /Pre
 				$browser->insert ('end',"\n",$format);
-				%style = $cw->_rollbackStack(\@stack,
-					qw(family pre));
+				%style = $cw->_rollbackStack(\@stack, qw(family pre));
 				$prevTag = $tag;
 			}
 			elsif ($tag =~ /^(code|tt|kbd|samp)$/) { # /Code
@@ -1358,8 +1391,7 @@ sub render
 				$lineWritten = 0;
 			}
 			elsif ($tag =~ /^(sup|sub)$/) { # /Superscript, /Subscript
-				%style = $cw->_rollbackStack(\@stack,
-					qw(size offset));
+				%style = $cw->_rollbackStack(\@stack, qw(size offset));
 			}
 			elsif ($tag =~ /^(big|small)$/) { # /Big, /Small
 				%style = $cw->_rollbackStack(\@stack,'size');
@@ -1452,10 +1484,13 @@ sub _makeTag
 		push (@parts,$val);
 	}
 
-	my $tag = join("_",@parts);
+	# make sure we have a value
+	$style->{spacing1} //= 0;
+	$style->{spacing3} //= 0;
 
 	# cache the fonts because if we don't performance is really bad
 	# with the cache life is good
+	my $tag = join("_",@parts);
 	my $fontSize = $cw->_size($style->{size});
 	my $fontKey = join("_", $style->{family},
 				$style->{weight},
@@ -1463,6 +1498,8 @@ sub _makeTag
 				$fontSize,
 				$style->{underline},
 				$style->{overstrike},
+				$style->{spacing1},
+				$style->{spacing3},
 				);
 	if (!$fontCache{$fontKey}) {
 	    $fontCache{$fontKey} = $cw->fontCreate(
@@ -1484,6 +1521,8 @@ sub _makeTag
 		-lmargin1 => $style->{lmargin1},
 		-lmargin2 => $style->{lmargin2},
 		-rmargin  => $style->{rmargin},
+		-spacing1 => $style->{spacing1},
+		-spacing3 => $style->{spacing3},
 		);
 	if (defined $widget) {
 		$widget->tagConfigure (@args);
@@ -1801,6 +1840,16 @@ Also, support for Cascading StyleSheets doesn't work at this time. It may be
 re-implemented at a later date, but, as this widget is not meant to become
 a full-fledged web browser (see L<"PURPOSE">), the CSS support might not
 return.
+
+As of version 0.13, very limited support for CSS is available for the SPAN tag.
+You can specify vertical margins:
+
+    <span style="margin-top: 3pt; margin-bottom: 10;">...</span>
+
+and that will be used. You can use any of the "absolute units": cm, mm, in,
+pt, pc, px, or no units which also means "px". "Relative units" are not
+understood and if used will probably be interpreted as "number of pixels"
+but what really happens is up to the the underlying Tk::Text widget.
 
 =head2 EXAMPLE
 
