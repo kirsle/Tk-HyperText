@@ -1848,8 +1848,9 @@ You can specify vertical margins:
 
 and that will be used. You can use any of the "absolute units": cm, mm, in,
 pt, pc, px, or no units which also means "px". "Relative units" are not
-understood and if used will probably be interpreted as "number of pixels"
-but what really happens is up to the the underlying Tk::Text widget.
+understood, but they and unknown units will be passed through as given; that
+means you could use Tk units. How truly unknown units will be interpreted is
+up to the the underlying Tk::Text widget.
 
 =head2 EXAMPLE
 
