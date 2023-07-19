@@ -215,6 +215,20 @@ sub clearHistory
 	$cw->{hypertext}->{history} = {};
 }
 
+# normalize the units, changing them from what HTML uses to what Tk::Text uses;
+# note: we only handle absolute units, not relative
+sub normalizeUnits
+{
+	my ($num, $units) = @_;
+	return $num if (!defined($units) || $units eq "px"); # pixels
+	return "${num}c" if ($units eq "cm"); # centimeters
+	return "${num}m" if ($units eq "mm"); # millimeters
+	return "${num}i" if ($units eq "in"); # inches
+	return "${num}p" if ($units eq "pt"); # points
+	return ($num * 12) . "p" if ($units eq "pc"); # picas (1pc == 12 pt)
+	return "$num$units"; # if all fail, return what they entered
+}
+
 sub render
 {
 	my ($cw,$html) = @_;
@@ -287,13 +301,31 @@ sub render
 	my $lineWritten = 0; # 1 = a line of text was written
 	my $endedBlock = 0;  # 1 = just ended a single line block element such as: H#, P, HR
 			     #     (to implement implied paragraphs when plain text comes after this)
+	my $prevTag = '';
+	my $tag;
+
+	# token is an array-ref:
+	# [0] = type: "S" for start tag, "E" for end tag, "T" for text, "C" for comment,
+	#             "D" for declaration, and "PI" for process instructions.
+	#             The rest of the token array depend on the type like this: 
+	#   ["S",  $tag, $attr (hash-ref of attributes), $attrseq (array-ref), $text]
+	#   ["E",  $tag, $text]
+	#   ["T",  $text, $is_data]
+	#   ["C",  $text]
+	#   ["D",  $text]
+	#   ["PI", $token0, $text]
+
 	while (my $token = $parser->get_token) {
 		my @data = @{$token};
+		#print "prevTag=$prevTag token: ", Dumper($token); use Data::Dumper;
 
 		if ($data[0] eq "T") { # Plain Text
 			my $text = $data[1];
-			next if ($text eq "\n");   # newline only
-			$text =~ s/([A-Za-z0-9]+)(\n+)([A-Za-z0-9]+)/$1 $3/ig;
+			$tag = '';
+
+			# should we be doing this here?
+			# how does it affect PRE and BLOCKQUOTE?
+			$text =~ s/(\S)([\s\n]+)(\S)/$1 $3/gm;
 
 			# Process escape sequences.
 			# fix the entities
@@ -326,12 +358,15 @@ sub render
 
 			# Unless in <pre>, remove newlines.
 			unless ($style{pre}) {
-				$text =~ s/[\x0d\x0a]//g;
+				# attempt to fix "text\n<font>" but it create problems for new paras
+				#$text =~ s/\n$/ /;
+
+				$text =~ s/[\n\r]//g;
 
 				# If there's no text, skip this.
-				if ($text =~ /^[\s\t]+$/) {
-					next;
-				}
+				# Note: if the text is a single space (that's maybe between tags) then we must show it!
+				#next if ($text =~ /^[\s\t]+$/);
+
 				$text =~ s/^[\s\t]+/ /g;
 				$text =~ s/[\s\t]+$/ /g;
 			}
@@ -416,10 +451,11 @@ sub render
 
 			# Insert the plain text.
 			if (length $text > 0) {
-				$browser->insert ('end',"\n") if ($endedBlock);
+				$browser->insert ('end',"\n") if ($prevTag =~ m/hr|p/);
 				$browser->insert ('end', $text, $tag);
 				$lineWritten = 1;
 				$endedBlock = 0;
+				$prevTag = '';
 			}
 
 			if ($style{linking}) {
@@ -432,7 +468,7 @@ sub render
 			# Skip blocked tags.
 			next if $cw->_blockedTag ($data[1]);
 
-			my $tag = lc($data[1]);
+			$tag = lc($data[1]);
 			my $format = $cw->_makeTag(\%style);
 
 			# if we just finished a single line block and we have one of these
@@ -514,10 +550,11 @@ sub render
 			elsif ($tag eq "br") { # Line break
 				$browser->SUPER::insert ('end', "\n", $format);
 				$lineWritten = 0;
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'p') { # Paragraph
 				$browser->insert ('end', "\n", $format) if ($lineWritten);
-				$browser->insert ('end', "\n", $format);
+				$browser->insert ('end', "\n", $format) if ($prevTag !~ m/(h\d)|p/);
 				$lineWritten = 0;
 			}
 			elsif ($tag eq 'form') { # Form
@@ -876,6 +913,7 @@ sub render
 				$browser->insert ('end', "\n", $format);
 				$lineWritten = 0;
 				$endedBlock = 1;
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'img') { # IMG
 				my $at = $data[2];
@@ -1080,6 +1118,14 @@ sub render
 				push (@stack, $cw->_addStack(\%style));
 			}
 			elsif ($tag eq 'span') { # Span
+				if ($data[2]->{style}) {
+					if ($data[2]->{style} =~ m/margin-top:\s*(\d+)(\w*)/) {
+						$style{spacing1} = normalizeUnits($1, $2);
+					}
+					if ($data[2]->{style} =~ m/margin-bottom:\s*(\d+)(\w*)/) {
+						$style{spacing3} = normalizeUnits($1, $2);
+					}
+				}
 				push (@stack, $cw->_addStack(\%style));
 			}
 			elsif ($tag eq 'pre') { # Pre
@@ -1140,7 +1186,7 @@ sub render
 			# Skip blocked tags.
 			next if $cw->_blockedTag ($data[1]);
 
-			my $tag = lc($data[1]);
+			$tag = lc($data[1]);
 			my $format = $cw->_makeTag(\%style);
 			if ($tag =~ /^(html|head)$/) { # /HTML, /HEAD
 				# That was nice of them.
@@ -1162,11 +1208,12 @@ sub render
 				$browser->insert('end',"\n",$format);
 				$lineWritten = 0;
 				$endedBlock = 1;
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'table') { # /Table
 				$browser->insert('end',"\n",$format);
-				%style = $cw->_rollbackStack(\@stack,
-					qw(intable));
+				%style = $cw->_rollbackStack(\@stack, qw(intable));
+				$prevTag = $tag;
 			}
 			elsif ($tag eq "tr") { # /Table Row
 				# Do nothing.
@@ -1251,6 +1298,7 @@ sub render
 						);
 					}
 				}
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'font') { # /Font
 				%style = $cw->_rollbackStack(\@stack,
@@ -1260,7 +1308,7 @@ sub render
 				$browser->insert('end',"\n\n",$format);
 				%style = $cw->_rollbackStack(\@stack, qw(size weight));
 				$lineWritten = 0;
-				#$endedBlock = 1;
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'ol') { # /Ordered List
 				pop (@stackList);
@@ -1284,6 +1332,7 @@ sub render
 					$browser->insert ('end',"\n\n",$format);
 					$lineWritten = 0;
 				}
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'ul') { # /Unordered List
 				pop (@stackList);
@@ -1307,6 +1356,7 @@ sub render
 					$browser->insert ('end',"\n\n",$format);
 					$lineWritten = 0;
 				}
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'li') { # /LI
 				$browser->insert('end',"\n",$format);
@@ -1317,6 +1367,7 @@ sub render
 				%style = $cw->_rollbackStack(\@stack,
 					qw(lmargin1 lmargin2 rmargin));
 				$lineWritten = 0;
+				$prevTag = $tag;
 			}
 			elsif ($tag eq 'div') { # /Div
 				$browser->insert('end',"\n",$format);
@@ -1328,8 +1379,8 @@ sub render
 			}
 			elsif ($tag eq 'pre') { # /Pre
 				$browser->insert ('end',"\n",$format);
-				%style = $cw->_rollbackStack(\@stack,
-					qw(family pre));
+				%style = $cw->_rollbackStack(\@stack, qw(family pre));
+				$prevTag = $tag;
 			}
 			elsif ($tag =~ /^(code|tt|kbd|samp)$/) { # /Code
 				%style = $cw->_rollbackStack(\@stack,'family');
@@ -1340,8 +1391,7 @@ sub render
 				$lineWritten = 0;
 			}
 			elsif ($tag =~ /^(sup|sub)$/) { # /Superscript, /Subscript
-				%style = $cw->_rollbackStack(\@stack,
-					qw(size offset));
+				%style = $cw->_rollbackStack(\@stack, qw(size offset));
 			}
 			elsif ($tag =~ /^(big|small)$/) { # /Big, /Small
 				%style = $cw->_rollbackStack(\@stack,'size');
@@ -1434,10 +1484,13 @@ sub _makeTag
 		push (@parts,$val);
 	}
 
-	my $tag = join("_",@parts);
+	# make sure we have a value
+	$style->{spacing1} //= 0;
+	$style->{spacing3} //= 0;
 
 	# cache the fonts because if we don't performance is really bad
 	# with the cache life is good
+	my $tag = join("_",@parts);
 	my $fontSize = $cw->_size($style->{size});
 	my $fontKey = join("_", $style->{family},
 				$style->{weight},
@@ -1445,6 +1498,8 @@ sub _makeTag
 				$fontSize,
 				$style->{underline},
 				$style->{overstrike},
+				$style->{spacing1},
+				$style->{spacing3},
 				);
 	if (!$fontCache{$fontKey}) {
 	    $fontCache{$fontKey} = $cw->fontCreate(
@@ -1466,6 +1521,8 @@ sub _makeTag
 		-lmargin1 => $style->{lmargin1},
 		-lmargin2 => $style->{lmargin2},
 		-rmargin  => $style->{rmargin},
+		-spacing1 => $style->{spacing1},
+		-spacing3 => $style->{spacing3},
 		);
 	if (defined $widget) {
 		$widget->tagConfigure (@args);
@@ -1478,12 +1535,18 @@ sub _makeTag
 }
 
 # Calculates the point size from an HTML size.
+# Note: we can't handle sizes like "+1" or "-1"
 sub _size
 {
 	my ($cw,$size) = @_;
 
+	# In points
+	if ($size =~ m/^(\d+)pt/) {
+		return $1;
+	}
+
 	# Translate words to numbers?
-	if ($size =~ /[^0-9]/) {
+	if ($size =~ /^[a-z]+/) {
 		$size = $cw->_sizeStringToNumber ($size);
 	}
 
@@ -1524,13 +1587,13 @@ sub _sizeStringToNumber
 	my ($cw,$string) = @_;
 
 	my %map = (
-		'xx-large' => 6,
-		'x-large'  => 5,
-		'large'    => 4,
-		'medium'   => 3,
-		'small'    => 2,
-		'x-small'  => 1,
-		'xx-small' => 0,
+		'xx-large' => 7,
+		'x-large'  => 6,
+		'large'    => 5,
+		'medium'   => 4,
+		'small'    => 3,
+		'x-small'  => 2,
+		'xx-small' => 1,
 	);
 
 	return exists $map{$string} ? $map{$string} : 3;
@@ -1778,6 +1841,17 @@ re-implemented at a later date, but, as this widget is not meant to become
 a full-fledged web browser (see L<"PURPOSE">), the CSS support might not
 return.
 
+As of version 0.13, very limited support for CSS is available for the SPAN tag.
+You can specify vertical margins:
+
+    <span style="margin-top: 3pt; margin-bottom: 10;">...</span>
+
+and that will be used. You can use any of the "absolute units": cm, mm, in,
+pt, pc, px, or no units which also means "px". "Relative units" are not
+understood, but they and unknown units will be passed through as given; that
+means you could use Tk units. How truly unknown units will be interpreted is
+up to the the underlying Tk::Text widget.
+
 =head2 EXAMPLE
 
 Run the `demo.pl` script included in the distribution.
@@ -1821,7 +1895,7 @@ default styles for use within the rendered pages.
         -family => 'Times',
         -mono   => 'Courier',
         -size   => 'medium',    # or any HTML size
-                                # (1..6, xx-small..xx-large)
+                                # (1..7, xx-small..xx-large, #pt)
 
         # Text styles, set them to 1 to apply the effect.
         # I don't see why anyone would want to use these,
@@ -2078,6 +2152,16 @@ The following tags and attributes are supported by this module:
     <ins>
   <s>
     <del>
+
+Note: The C<font> tag C<size> attribute understands "1" through "7". It
+can also map "xx-small" to "xx-large" as 1 to 7. It does NOT understand
+relative sizes like "+1" to make it 1 size bigger than the current size
+(with a max of 7) nor "-1" to make it 1 size smaller than the current size
+(with a min of 1). Since there is no style sheet support yet but the
+Tk::Text widget can understand point sizes, Tk::HyperText has an extension
+so you can also specify a number and "pt" (e.g. "14pt") to have the font
+use that point size. Further note that Tk::Text does not guarantee that
+size but will use whatever it thinks is the closest thing.
 
 =head1 SEE ALSO
 
